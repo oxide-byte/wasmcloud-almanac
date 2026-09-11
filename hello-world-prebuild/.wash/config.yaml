@@ -1,0 +1,3 @@
+version: 2.9.0
+dev:
+  allow_insecure_registries: false

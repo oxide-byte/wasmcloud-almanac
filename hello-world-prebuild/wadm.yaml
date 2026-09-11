@@ -10,7 +10,10 @@ spec:
     - name: http-component
       type: component
       properties:
-        # Use localhost:4222/hello:0.1.0 if you chose Option A
+        # Option A (build it yourself): push to the local registry and use
+        # registry:5000/hello:0.1.0 — that is the in-lattice address. From the
+        # host it is localhost:5001, since macOS AirPlay owns 5000.
+        # Option B (prebuilt, below): pull straight from ghcr.io, no push needed.
         image: ghcr.io/wasmcloud/components/http-hello-world-rust:0.1.0
       traits:
         - type: spreadscaler
