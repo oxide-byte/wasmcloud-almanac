@@ -1,0 +1,125 @@
+name: wasmcloud-almanac
+
+# This docker-compose file loads
+#   nats with JetStream enabled (persisted)
+#   a local OCI registry
+#   redis (for the kvredis capability provider)
+#   grafana + tempo for tracing
+#   a wasmcloud host
+#   wadm
+
+services:
+  nats:
+    image: nats:2.14-alpine
+    # NOTE: overriding `command` drops the image's bundled nats-server.conf,
+    # so JetStream (-js), the store dir (-sd) and monitoring (-m) must be explicit.
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    ports:
+      - "4222:4222" # client
+      - "6222:6222" # cluster routes
+      - "8222:8222" # http monitoring
+    volumes:
+      - nats_data:/data
+    networks: [wasmcloud-lattice]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks: [wasmcloud-lattice]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  registry:
+    image: registry:3.1.1
+    ports:
+      # Published on 5001: on macOS, port 5000 is taken by AirPlay Receiver
+      # (ControlCenter). In-lattice, the registry is still `registry:5000`.
+      - "5001:5000"
+    volumes:
+      - registry_data:/var/lib/registry
+    networks: [wasmcloud-lattice]
+
+  tempo:
+    image: grafana/tempo:2.10.8
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml:ro
+      # Named volume (not a bind mount) so the image's 10001:10001 ownership
+      # of /var/tempo is preserved - tempo runs as a non-root user.
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200" # tempo query api
+      - "4317:4317" # otlp grpc
+      - "4318:4318" # otlp http
+    networks: [wasmcloud-lattice]
+
+  grafana:
+    image: grafana/grafana:13.2.1
+    ports:
+      - "5050:3000"
+    volumes:
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    depends_on:
+      - tempo
+    networks: [wasmcloud-lattice]
+
+  wasmcloud:
+    image: ghcr.io/wasmcloud/wasmcloud:1.9.2
+    depends_on:
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      tempo:
+        condition: service_started
+    environment:
+      WASMCLOUD_NATS_HOST: nats
+      WASMCLOUD_NATS_PORT: "4222"
+      WASMCLOUD_LATTICE: default
+      WASMCLOUD_LOG_LEVEL: debug
+      WASMCLOUD_OCI_ALLOWED_INSECURE: registry:5000
+      WASMCLOUD_HTTP_ADMIN: 0.0.0.0:9090 # serves /livez and /readyz
+      WASMCLOUD_OBSERVABILITY_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      RUST_LOG: debug,hyper=info,async_nats=info,oci_client=info,cranelift_codegen=warn
+    ports:
+      - "8080-8089:8080-8089" # Allows exposing examples on ports 8080-8089
+      - "9090:9090" # admin: /livez, /readyz
+    networks: [wasmcloud-lattice]
+    # NOTE: no container healthcheck - the wolfi-based host image ships no
+    # wget/curl/nc, so probe the published admin port from outside instead:
+    #   curl -f http://localhost:9090/readyz
+
+  wadm:
+    image: ghcr.io/wasmcloud/wadm:0.21.1
+    depends_on:
+      nats:
+        condition: service_healthy
+    environment:
+      WADM_NATS_SERVER: nats:4222
+    networks: [wasmcloud-lattice]
+
+networks:
+  wasmcloud-lattice:
+    driver: bridge
+
+volumes:
+  nats_data:
+  redis_data:
+  registry_data:
+  tempo_data:
