@@ -1,5 +1,10 @@
 # Build Output
 /target
+*/**/target
 
 # System Files
 .DS_Store
+
+# IDE
+.iml
+.idea

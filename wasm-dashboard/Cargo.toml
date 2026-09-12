@@ -1,0 +1,13 @@
+[package]
+name = "wasm-dashboard"
+version = "0.1.0"
+authors = ["oxide-byte <oxidebyte@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+dioxus = { version = "0.7.1", features = ["router", "fullstack"] }
+
+[features]
+default = ["web"]
+web = ["dioxus/web"]
+server = ["dioxus/server"]
