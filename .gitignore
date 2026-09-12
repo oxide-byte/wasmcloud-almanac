@@ -1,6 +1,7 @@
 # Build Output
 /target
 */**/target
+wasm-dashboard/.env
 
 # System Files
 .DS_Store

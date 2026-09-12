@@ -1,3 +1,4 @@
+mod api;
 mod components;
 mod pages;
 
@@ -9,6 +10,10 @@ const MAIN_CSS: Asset = asset!("/assets/main.css");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {
+    // Load environment variables from .env file if it exists
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = dotenvy::dotenv();
+
     dioxus::launch(App);
 }
 

@@ -89,6 +89,10 @@ rsx! {
 }
 ```
 
+### CSS Modifications
+
+⚠️ **IMPORTANT:** CSS modifications should ONLY be made to `main.css`. Never edit `tailwind.css` as it is auto-generated. All custom styles must go in `assets/main.css`.
+
 # Components
 
 Components are the building blocks of apps

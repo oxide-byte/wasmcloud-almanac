@@ -1,0 +1,269 @@
+/* Color Variables */
+:root {
+  --color-red-50: oklch(97.1% 0.013 17.38);
+  --color-red-200: oklch(88.5% 0.062 18.334);
+  --color-red-600: oklch(57.7% 0.245 27.325);
+  --color-red-800: oklch(44.4% 0.177 26.899);
+  --color-yellow-50: oklch(98.7% 0.026 102.212);
+  --color-yellow-200: oklch(94.5% 0.129 101.54);
+  --color-yellow-800: oklch(47.6% 0.114 61.907);
+  --color-green-100: oklch(96.2% 0.044 156.743);
+  --color-green-800: oklch(44.8% 0.119 151.328);
+  --color-blue-50: oklch(97% 0.014 254.604);
+  --color-blue-200: oklch(88.2% 0.059 254.128);
+  --color-blue-800: oklch(42.4% 0.199 265.638);
+  --color-gray-200: oklch(92.8% 0.006 264.531);
+  --color-gray-300: oklch(87.2% 0.01 258.338);
+  --color-gray-500: oklch(55.1% 0.027 264.364);
+  --color-gray-600: oklch(44.6% 0.03 256.802);
+  --color-gray-800: oklch(27.8% 0.033 256.848);
+  --color-white: #fff;
+}
+
+/* Typography */
+body {
+  font-family: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Navbar */
+#navbar {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: var(--color-gray-800);
+  color: var(--color-white);
+}
+
+#navbar a {
+  text-decoration: none;
+  color: inherit;
+  transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#navbar a:hover {
+  color: var(--color-gray-300);
+}
+
+/* Spacing */
+.p-4 {
+  padding: 1rem;
+}
+
+.p-6 {
+  padding: 1.5rem;
+}
+
+.p-8 {
+  padding: 2rem;
+}
+
+.px-3 {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mt-6 {
+  margin-top: 1.5rem;
+}
+
+/* Layout */
+.flex {
+  display: flex;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.space-y-4 > :not(:last-child) {
+  margin-bottom: 1rem;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* Typography Sizes */
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+.text-lg {
+  font-size: 1.125rem;
+  line-height: 1.75;
+}
+
+.text-3xl {
+  font-size: 1.875rem;
+  line-height: 2.25;
+}
+
+/* Font Weights */
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+/* Text Colors */
+.text-gray-500 {
+  color: var(--color-gray-500);
+}
+
+.text-gray-600 {
+  color: var(--color-gray-600);
+}
+
+.text-gray-800 {
+  color: var(--color-gray-800);
+}
+
+.text-red-600 {
+  color: var(--color-red-600);
+}
+
+.text-red-800 {
+  color: var(--color-red-800);
+}
+
+.text-yellow-800 {
+  color: var(--color-yellow-800);
+}
+
+.text-blue-800 {
+  color: var(--color-blue-800);
+}
+
+.text-green-800 {
+  color: var(--color-green-800);
+}
+
+.text-white {
+  color: var(--color-white);
+}
+
+/* Background Colors */
+.bg-white {
+  background-color: var(--color-white);
+}
+
+.bg-red-50 {
+  background-color: var(--color-red-50);
+}
+
+.bg-yellow-50 {
+  background-color: var(--color-yellow-50);
+}
+
+.bg-blue-50 {
+  background-color: var(--color-blue-50);
+}
+
+.bg-green-100 {
+  background-color: var(--color-green-100);
+}
+
+.bg-gray-800 {
+  background-color: var(--color-gray-800);
+}
+
+/* Borders */
+.border {
+  border: 1px solid var(--color-gray-300);
+}
+
+.border-gray-200 {
+  border-color: var(--color-gray-200);
+}
+
+.border-red-200 {
+  border-color: var(--color-red-200);
+}
+
+.border-yellow-200 {
+  border-color: var(--color-yellow-200);
+}
+
+.border-blue-200 {
+  border-color: var(--color-blue-200);
+}
+
+/* Border Radius */
+.rounded {
+  border-radius: 0.25rem;
+}
+
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+/* Shadows */
+.shadow {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+.hover\:shadow-md:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.transition-shadow {
+  transition-property: box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
