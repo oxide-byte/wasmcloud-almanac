@@ -129,6 +129,28 @@ pub async fn delete_model(model_name: String) -> Result<String, ServerFnError> {
     Ok(response_str)
 }
 
+/// Upload a new model to the lattice via wadm.yaml
+#[server]
+pub async fn upload_model(yaml_content: String) -> Result<String, ServerFnError> {
+    use async_nats;
+
+    let nats_url = get_nats_url();
+    let client = async_nats::connect(&nats_url)
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to connect to NATS: {}", e)))?;
+
+    // Send the yaml content to the wadm.api.default.model.put endpoint
+    let response = client
+        .request("wadm.api.default.model.put", yaml_content.into())
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to upload model: {}", e)))?;
+
+    let response_str = String::from_utf8(response.payload.to_vec())
+        .map_err(|e| ServerFnError::new(format!("Failed to parse response: {}", e)))?;
+
+    Ok(response_str)
+}
+
 /// Deploy a model to the lattice
 #[server]
 pub async fn deploy_model(model_name: String) -> Result<String, ServerFnError> {

@@ -1,4 +1,6 @@
-use crate::api::{delete_model, deploy_model, fetch_config, fetch_models, undeploy_model};
+use crate::api::{
+    delete_model, deploy_model, fetch_config, fetch_models, undeploy_model, upload_model,
+};
 use dioxus::prelude::*;
 
 #[component]
@@ -11,22 +13,23 @@ pub fn Models() -> Element {
         div {
             class: "p-8",
             h1 {
-                class: "text-3xl font-bold mb-6",
+                class: "text-3xl font-bold mb-3",
                 "Models"
             }
 
             div {
                 class: "bg-white rounded-lg shadow p-6",
+
+                // Upload new model section
+                UploadForm {
+                    on_upload_complete: move || {
+                        models.restart();
+                    }
+                }
+
                 p {
                     class: "text-gray-600 mb-6",
                     "List of deployed wasmCloud models from the application deployment manager (wadm)"
-                }
-
-                // Deploy new model section
-                DeployForm {
-                    on_deploy_complete: move || {
-                        models.restart();
-                    }
                 }
 
                 // Display loading state, error state, or models
@@ -305,16 +308,37 @@ fn ModelCard(
 }
 
 #[component]
-fn DeployForm(on_deploy_complete: EventHandler<()>) -> Element {
-    let mut model_name = use_signal(|| String::new());
+fn UploadForm(on_upload_complete: EventHandler<()>) -> Element {
+    let mut selected_file = use_signal(|| Option::<String>::None);
+    let mut yaml_content = use_signal(|| String::new());
     let mut deploy_error = use_signal(|| String::new());
     let mut deploy_success = use_signal(|| String::new());
     let mut deploy_loading = use_signal(|| false);
 
+    let handle_file_change = move |evt: FormEvent| {
+        // In Dioxus, evt.files() returns a Vec<FileData>
+        let file_list = evt.files();
+        if let Some(file) = file_list.first() {
+            selected_file.set(Some(file.name()));
+
+            // Read file content
+            let file_clone = file.clone();
+            spawn(async move {
+                if let Ok(bytes) = file_clone.read_bytes().await {
+                    if let Ok(content) = String::from_utf8(bytes.to_vec()) {
+                        yaml_content.set(content);
+                    } else {
+                        deploy_error.set("Failed to read file as text".to_string());
+                    }
+                }
+            });
+        }
+    };
+
     let handle_deploy = move |_| {
-        let name = model_name.read().clone();
-        if name.trim().is_empty() {
-            deploy_error.set("Model name cannot be empty".to_string());
+        let content = yaml_content.read().clone();
+        if content.trim().is_empty() {
+            deploy_error.set("No file selected or file is empty".to_string());
             return;
         }
 
@@ -324,15 +348,17 @@ fn DeployForm(on_deploy_complete: EventHandler<()>) -> Element {
                 deploy_error.set(String::new());
                 deploy_success.set(String::new());
 
-                match deploy_model(name.clone()).await {
+                match upload_model(content.clone()).await {
                     Ok(_response) => {
-                        deploy_success.set(format!("Successfully deployed: {}", name));
-                        model_name.set(String::new());
+                        deploy_success
+                            .set("Successfully uploaded model from wadm.yaml".to_string());
+                        selected_file.set(None);
+                        yaml_content.set(String::new());
                         deploy_loading.set(false);
-                        on_deploy_complete.call(());
+                        on_upload_complete.call(());
                     }
                     Err(e) => {
-                        deploy_error.set(format!("Deploy failed: {}", e));
+                        deploy_error.set(format!("Upload failed: {}", e));
                         deploy_loading.set(false);
                     }
                 }
@@ -345,31 +371,35 @@ fn DeployForm(on_deploy_complete: EventHandler<()>) -> Element {
             class: "mb-6 p-4 bg-blue-50 border border-blue-200 rounded",
             h3 {
                 class: "text-lg font-semibold text-blue-900 mb-3",
-                "Deploy New Model"
+                "Upload New Model"
             }
 
             div {
                 class: "flex gap-2 mb-3",
                 input {
-                    class: "flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500",
-                    placeholder: "Enter model name (e.g., hello-world-app)",
-                    value: "{model_name}",
-                    oninput: move |evt| {
-                        model_name.set(evt.value());
-                        deploy_error.set(String::new());
-                        deploy_success.set(String::new());
-                    },
+                    r#type: "file",
+                    accept: ".yaml,.yml",
+                    onchange: handle_file_change,
                     disabled: deploy_loading(),
+                    class: "flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500",
                 }
                 button {
                     onclick: handle_deploy,
-                    disabled: deploy_loading() || model_name.read().trim().is_empty(),
+                    disabled: deploy_loading() || yaml_content.read().trim().is_empty(),
                     class: "px-4 py-2 bg-blue-500 text-white rounded font-medium hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors",
                     if deploy_loading() {
-                        "Deploying..."
+                        "Uploading..."
                     } else {
-                        "Deploy"
+                        "Upload"
                     }
+                }
+            }
+
+            // Selected file info
+            if let Some(file_name) = selected_file.read().as_ref() {
+                div {
+                    class: "mb-3 p-2 bg-blue-100 border border-blue-300 rounded text-blue-800 text-sm",
+                    "Selected file: {file_name}"
                 }
             }
 
