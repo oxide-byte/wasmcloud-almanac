@@ -1,0 +1,36 @@
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: hello-world-template-app
+  annotations:
+    version: v0.1.0
+    description: "HTTP Hello World Template Demo"
+spec:
+  components:
+    - name: http-component
+      type: component
+      properties:
+        # Push your WASM to a local registry with:
+        # wash oci push --insecure localhost:5001/hello-world:0.1.0 ./target/wasm32-wasip2/release/hello_world.wasm
+        # Then use: registry:5000/hello-world:0.1.0 (in-lattice address)
+        image: registry:5000/hello-world:0.1.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 2 # Wadm will automatically balance these 2 instances across your hosts
+    - name: httpserver
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/http-server:0.22.0
+      traits:
+        - type: link
+          properties:
+            target: http-component
+            namespace: wrpc
+            package: http
+            interfaces: [incoming-handler]
+            source:
+              config:
+                - name: default-http
+                  properties:
+                    address: 0.0.0.0:8080

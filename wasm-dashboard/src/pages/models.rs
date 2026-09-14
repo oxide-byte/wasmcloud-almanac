@@ -78,6 +78,7 @@ pub fn Models() -> Element {
                                                 name: model.name.clone(),
                                                 status: model.status.clone(),
                                                 deployed: model.deployed.clone(),
+                                                status_message: model.status_message.clone(),
                                                 on_action_complete: move || {
                                                     models.restart();
                                                 }
@@ -127,6 +128,7 @@ fn ModelCard(
     name: String,
     status: String,
     deployed: String,
+    status_message: Option<String>,
     on_action_complete: EventHandler<()>,
 ) -> Element {
     let mut undeploy_error = use_signal(|| String::new());
@@ -136,7 +138,10 @@ fn ModelCard(
     let mut delete_loading = use_signal(|| false);
     let mut deploy_loading = use_signal(|| false);
 
-    let is_deployed = status.to_lowercase() == "deployed";
+    let status_lower = status.to_lowercase();
+    let is_deployed = status_lower == "deployed";
+    let is_failed = status_lower == "failed";
+    let is_reconciling = status_lower == "reconciling" || status_lower == "deploying";
 
     let handle_undeploy = {
         let name = name.clone();
@@ -148,6 +153,7 @@ fn ModelCard(
                     undeploy_error.set(String::new());
                     match undeploy_model(name).await {
                         Ok(_) => {
+                            gloo_timers::future::sleep(std::time::Duration::from_millis(500)).await;
                             undeploy_loading.set(false);
                             on_action_complete.call(());
                         }
@@ -171,6 +177,7 @@ fn ModelCard(
                     delete_error.set(String::new());
                     match delete_model(name).await {
                         Ok(_) => {
+                            gloo_timers::future::sleep(std::time::Duration::from_millis(500)).await;
                             delete_loading.set(false);
                             on_action_complete.call(());
                         }
@@ -194,6 +201,7 @@ fn ModelCard(
                     deploy_error.set(String::new());
                     match deploy_model(name).await {
                         Ok(_) => {
+                            gloo_timers::future::sleep(std::time::Duration::from_millis(500)).await;
                             deploy_loading.set(false);
                             on_action_complete.call(());
                         }
@@ -219,8 +227,12 @@ fn ModelCard(
                 span {
                     class: if is_deployed {
                         "px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium"
+                    } else if is_failed {
+                        "px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium"
+                    } else if is_reconciling {
+                        "px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
                     } else {
-                        "px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium"
+                        "px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium"
                     },
                     "{status}"
                 }
@@ -228,6 +240,21 @@ fn ModelCard(
             p {
                 class: "text-sm text-gray-500 mb-4",
                 "Deployed: {deployed}"
+            }
+
+            // Display error details if deployment failed
+            if is_failed && status_message.is_some() {
+                div {
+                    class: "mb-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm",
+                    p {
+                        class: "font-semibold mb-1",
+                        "Deployment Failed"
+                    }
+                    p {
+                        class: "text-xs font-mono break-words",
+                        "{status_message.as_ref().unwrap()}"
+                    }
+                }
             }
 
             // Error messages

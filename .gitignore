@@ -1,7 +1,12 @@
 # Build Output
 /target
 */**/target
-wasm-dashboard/.env
+
+# MD-Book
+mdbook/book
+
+# WIT dependencies
+*/**/wit/deps
 
 # System Files
 .DS_Store
@@ -9,3 +14,6 @@ wasm-dashboard/.env
 # IDE
 .iml
 .idea
+
+# Application
+wasm-dashboard/.env

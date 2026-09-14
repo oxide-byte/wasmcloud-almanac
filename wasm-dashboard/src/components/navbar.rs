@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use crate::pages::{Home, Models};
+use crate::pages::{Home, Models, WasmRegistry};
 
 #[component]
 fn Navbar() -> Element {
@@ -17,6 +17,11 @@ fn Navbar() -> Element {
                 class: "hover:text-gray-300 font-medium",
                 "Models"
             }
+            Link {
+                to: Route::WasmRegistry {},
+                class: "hover:text-gray-300 font-medium",
+                "WASM Registry"
+            }
         }
         Outlet::<Route> {}
     }
@@ -29,4 +34,6 @@ pub enum Route {
     Home {},
     #[route("/models")]
     Models {},
+    #[route("/wasm-registry")]
+    WasmRegistry {},
 }
