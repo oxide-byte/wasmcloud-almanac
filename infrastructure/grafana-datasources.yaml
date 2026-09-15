@@ -15,3 +15,12 @@ datasources:
       httpMethod: GET
       streamingEnabled:
         search: true
+  - name: Redis
+    type: redis-datasource
+    uid: redis
+    access: proxy
+    orgId: 1
+    url: redis://redis:6379
+    basicAuth: false
+    version: 1
+    editable: true
