@@ -1,7 +1,7 @@
 apiVersion: core.oam.dev/v1beta1
 kind: Application
 metadata:
-  name: http-kv-handler
+  name: http-kv-handler-app
   annotations:
     version: v0.1.0
     description: "HTTP + Key-Value Handler Component"

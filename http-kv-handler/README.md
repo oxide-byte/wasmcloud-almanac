@@ -148,6 +148,86 @@ docker run --name redis -p 6379:6379 redis:latest
 wash build
 ```
 
+## Deployment Commands
+
+### Prerequisites
+
+Check WASH version (must be ≥2.9.0):
+
+```sh
+wash --version
+```
+
+Check lattice readiness:
+
+```sh
+curl -f http://localhost:9090/readyz
+```
+
+### Push Component to Registry
+
+Push your compiled WASM to the local HTTP registry (use `--insecure` for non-HTTPS registries):
+
+```sh
+wash oci push --insecure localhost:5001/http-kv-handler:0.1.0 ./target/wasm32-wasip2/release/http_kv_handler.wasm
+```
+
+### Upload and Deploy
+
+Validate your WASH configuration:
+
+```sh
+wash config validate
+```
+
+Upload the application manifest to the lattice:
+
+```sh
+docker run --rm --network wasmcloud-almanac_wasmcloud-lattice -v "$PWD/wadm.yaml:/m.yaml:ro" natsio/nats-box:latest sh -c 'nats -s nats://nats:4222 req "wadm.api.default.model.put" "$(cat /m.yaml)" --raw --timeout 10s'
+```
+
+Deploy the application:
+
+```sh
+docker run --rm --network wasmcloud-almanac_wasmcloud-lattice natsio/nats-box:latest sh -c 'nats -s nats://nats:4222 req "wadm.api.default.model.deploy.http-kv-handler-app" "" --raw --timeout 10s'
+```
+
+### Testing & Inspection
+
+List all deployed models in the lattice:
+
+```sh
+docker run --rm --network wasmcloud-almanac_wasmcloud-lattice natsio/nats-box:latest sh -c 'nats -s nats://nats:4222 req "wadm.api.default.model.list" "" --raw --timeout 10s'
+```
+
+Test the application:
+
+```shell
+# Store a value
+
+curl -X POST http://localhost:8080 \
+  -H "Content-Type: application/json" \
+  -d '{"key":"mykey","value":"myvalue"}'
+
+# Retrieve a value
+curl "http://localhost:8080?key=mykey"
+```
+
+
+### Cleanup
+
+Undeploy the application:
+
+```sh
+docker run --rm --network wasmcloud-almanac_wasmcloud-lattice natsio/nats-box:latest sh -c 'nats -s nats://nats:4222 req "wadm.api.default.model.undeploy.http-kv-handler-app" "" --raw --timeout 10s'
+```
+
+Remove the application manifest from the lattice:
+
+```sh
+docker run --rm --network wasmcloud-almanac_wasmcloud-lattice natsio/nats-box:latest sh -c 'nats -s nats://nats:4222 req "wadm.api.default.model.del.http-kv-handler-app" "" --raw --timeout 10s'
+```
+
 ## WIT Interfaces
 
 This component uses the following [WIT interfaces](https://component-model.bytecodealliance.org/design/wit.html):
