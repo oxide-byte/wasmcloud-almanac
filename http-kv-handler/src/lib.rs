@@ -4,13 +4,9 @@ mod bindings {
     });
 }
 
-use bindings::exports::wasi::http::incoming_handler::Guest;
-use bindings::wasi::http::types::{
-    Fields, IncomingBody, IncomingRequest, Method, OutgoingBody, OutgoingResponse, ResponseOutparam,
-};
 use bindings::wasi::keyvalue::store::open;
-
-struct Component;
+use wstd::http::{Body, Request, Method, Response, StatusCode};
+use serde::Deserialize;
 
 /// The keyvalue backend to use.
 ///
@@ -26,139 +22,87 @@ struct Component;
 ///
 /// Change this constant and uncomment the matching section in
 /// `.wash/config.yaml` to switch backends.
-const BACKEND: &str = "in_memory";
+const BACKEND: &str = "redis";
 
-impl Guest for Component {
-    fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
-        let (status, body) = match request.method() {
-            Method::Post => handle_post(request),
-            Method::Get => handle_get(request),
-            _ => (405u16, "Method Not Allowed\n".to_string()),
-        };
-        if let Err(e) = write_response(response_out, status, &body) {
-            eprintln!("failed to write response: {e}");
-        }
-    }
+#[derive(Deserialize, Debug)]
+struct QueryParams {
+    key: String
 }
 
-/// Send the response back through `response_out`, returning the first error
-/// encountered (so the caller can log it). Returning `Result` rather than
-/// `.unwrap()`ing keeps us inside the workspace's clippy::unwrap_used deny.
-fn write_response(response_out: ResponseOutparam, status: u16, body: &str) -> Result<(), String> {
-    let response = OutgoingResponse::new(Fields::new());
-    response
-        .set_status_code(status)
-        .map_err(|()| format!("invalid status code: {status}"))?;
-    let out_body = response
-        .body()
-        .map_err(|()| "failed to take response body".to_string())?;
-    ResponseOutparam::set(response_out, Ok(response));
-    let stream = out_body
-        .write()
-        .map_err(|()| "failed to open body stream".to_string())?;
-    stream
-        .blocking_write_and_flush(body.as_bytes())
-        .map_err(|e| format!("write failed: {e:?}"))?;
-    drop(stream);
-    OutgoingBody::finish(out_body, None).map_err(|e| format!("finish failed: {e:?}"))?;
-    Ok(())
-}
-
-/// Handle `POST /` with a JSON body `{"key": "...", "value": "..."}`.
-/// Stores the key-value pair in the configured backend under the `BACKEND`
-/// bucket.
-fn handle_post(request: IncomingRequest) -> (u16, String) {
-    let body_bytes = match read_body(request) {
-        Ok(b) => b,
-        Err(e) => return (400, format!("Failed to read body: {e}\n")),
-    };
-
-    let payload: KvPayload = match serde_json::from_slice(&body_bytes) {
-        Ok(v) => v,
-        Err(e) => {
-            return (
-                400,
-                format!("Invalid JSON (expected {{\"key\":\"...\",\"value\":\"...\"}}): {e}\n"),
-            );
-        }
-    };
-
-    let bucket = match open(BACKEND) {
-        Ok(b) => b,
-        Err(e) => return (500, format!("Failed to open keyvalue bucket: {e:?}\n")),
-    };
-
-    match bucket.set(&payload.key, payload.value.as_bytes()) {
-        Ok(_) => (200, format!("[{BACKEND}] Stored key '{}'\n", payload.key)),
-        Err(e) => (500, format!("[{BACKEND}] Failed to store key: {e:?}\n")),
-    }
-}
-
-/// Handle `GET /?key=<key>`.
-/// Returns the stored value if the key exists, or 404 if not.
-fn handle_get(request: IncomingRequest) -> (u16, String) {
-    let path_and_query = request.path_with_query().unwrap_or_default();
-
-    let key = match parse_query_param(&path_and_query, "key") {
-        Some(k) => k,
-        None => return (400, "Missing required query parameter: key\n".to_string()),
-    };
-
-    let bucket = match open(BACKEND) {
-        Ok(b) => b,
-        Err(e) => return (500, format!("Failed to open keyvalue bucket: {e:?}\n")),
-    };
-
-    match bucket.get(&key) {
-        Ok(Some(bytes)) => (
-            200,
-            format!("[{BACKEND}] {}\n", String::from_utf8_lossy(&bytes)),
-        ),
-        Ok(None) => (404, format!("[{BACKEND}] Key '{key}' not found\n")),
-        Err(e) => (500, format!("[{BACKEND}] Failed to get key: {e:?}\n")),
-    }
-}
-
-#[derive(serde::Deserialize)]
-struct KvPayload {
+#[derive(Deserialize, Debug)]
+struct Payload {
     key: String,
-    value: String,
+    value: String
 }
 
-fn read_body(request: IncomingRequest) -> Result<Vec<u8>, String> {
-    let body = request
-        .consume()
-        .map_err(|_| "failed to consume request body".to_string())?;
-    let stream = body
-        .stream()
-        .map_err(|_| "failed to get body stream".to_string())?;
+#[wstd::http_server]
+async fn main(request: Request<Body>) -> Result<Response<Body>, wstd::http::Error> {
+    let result: Result<Response<Body>, wstd::http::Error>  = match request.method() {
+        &Method::POST => handle_post(request).await,
+        &Method::GET => handle_get(request).await,
+        _ => response_factory("Method Not Allowed\n", StatusCode::METHOD_NOT_ALLOWED),
+    };
 
-    let mut data = Vec::new();
-    loop {
-        match stream.read(65536) {
-            Ok(chunk) if chunk.is_empty() => break,
-            Ok(chunk) => data.extend_from_slice(&chunk),
-            Err(_) => break,
-        }
+    match result {
+        Ok(response) => Ok(response),
+        Err(err) => response_factory(format!("Error: {}",err).as_str(), StatusCode::INTERNAL_SERVER_ERROR)
     }
-    drop(stream);
-    IncomingBody::finish(body);
-    Ok(data)
 }
 
-fn parse_query_param(path_and_query: &str, param: &str) -> Option<String> {
-    let query = path_and_query.split_once('?')?.1;
-    for pair in query.split('&') {
-        let mut parts = pair.splitn(2, '=');
-        if parts.next()? == param {
-            return parts.next().map(|v| v.to_string());
+async fn handle_get(request: Request<Body>) -> Result<Response<Body>, wstd::http::Error> {
+    if let Some(query_str) = request.uri().query() {
+        if let Ok(key_value) = serde_qs::from_str::<QueryParams>(query_str) {
+
+            let bucket = match open(BACKEND) {
+                Ok(b) => b,
+                Err(e) =>
+                    return response_factory(format!("Error: {}",e).as_str(), StatusCode::BAD_REQUEST)
+            };
+
+            match bucket.get(&key_value.key) {
+                Ok(Some(bytes)) => {
+                    let message = format!("[{BACKEND}] {}\n", String::from_utf8_lossy(&bytes));
+                    response_factory(message.as_str(), StatusCode::OK)
+                },
+                Ok(None) => response_factory("Key not found", StatusCode::NOT_FOUND),
+                Err(e) => response_factory(format!("Error: {}",e).as_str(), StatusCode::INTERNAL_SERVER_ERROR),
+            }
+        } else {
+            response_factory("Missing required query parameter: key\n", StatusCode::BAD_REQUEST)
         }
+    } else {
+        response_factory("Missing required query parameter: key\n", StatusCode::BAD_REQUEST)
     }
-    None
 }
 
-#[allow(unsafe_code)] // bindings::export! emits unsafe FFI shims
-mod export {
-    use super::{Component, bindings};
-    bindings::export!(Component with_types_in bindings);
+async fn handle_post(request: Request<Body>) -> Result<Response<Body>, wstd::http::Error> {
+    let body_bytes = request.into_body().bytes_contents().await;
+    if body_bytes.is_ok() {
+        match serde_json::from_slice::<Payload>(&body_bytes.unwrap()) {
+            Ok(payload) => {
+                
+                let bucket = match open(BACKEND) {
+                    Ok(b) => b,
+                    Err(e) => return response_factory(format!("[{BACKEND}] Bucket cannot be accessed: {:?}",e).as_str(), StatusCode::INTERNAL_SERVER_ERROR),
+                };
+
+                match bucket.set(&payload.key, payload.value.as_bytes()) {
+                    Ok(_) => response_factory("Key Stored", StatusCode::OK),
+                    Err(e) => response_factory(format!("[{BACKEND}] Cannot store key/value {:?}",e).as_str(), StatusCode::INTERNAL_SERVER_ERROR),
+                }
+            }
+            Err(_e) => {
+                response_factory("Invalid JSON (expected {{\"key\":\"...\",\"value\":\"...\"}})", StatusCode::BAD_REQUEST)
+            }
+        }
+    } else {
+        response_factory("Invalid JSON (expected {{\"key\":\"...\",\"value\":\"...\"}})", StatusCode::BAD_REQUEST)
+    }
+}
+
+fn response_factory(message: &str, code: StatusCode) -> Result<Response<Body>, wstd::http::Error> {
+    Response::builder()
+        .status(code)
+        .body(message.into())
+        .map_err(Into::into)
 }

@@ -45,15 +45,29 @@ wash dev
 
 ## Send requests to the running component
 
+### Local development (wash dev)
+
+When running with `wash dev`, the HTTP server listens on port 8080 by default:
+
+Store a value
+
 ```shell
-# Store a value
 curl -X POST http://localhost:8000 \
   -H "Content-Type: application/json" \
-  -d '{"key":"mykey","value":"myvalue"}'
+  -d '{"key":"mykey","value":"myvalue2"}'
+```
 
-# Retrieve a value
+Retrieve a value
+
+```shell
 curl "http://localhost:8000?key=mykey"
 ```
+
+### Deployment (wadm.yaml)
+
+When deployed via WADM, the included `wadm.yaml` uses the Redis capability provider and connects to `redis://redis:6379` on the `wasmcloud-lattice` Docker network (the `redis` service in `infrastructure/docker-compose.yaml`).
+
+After deployment, use the same port 8080 commands above to test.
 
 ## Choosing a backend
 
@@ -202,17 +216,30 @@ docker run --rm --network wasmcloud-almanac_wasmcloud-lattice natsio/nats-box:la
 
 Test the application:
 
-```shell
-# Store a value
 
+Store a value
+
+```shell
 curl -X POST http://localhost:8080 \
   -H "Content-Type: application/json" \
   -d '{"key":"mykey","value":"myvalue"}'
+```
 
-# Retrieve a value
+Retrieve a value
+
+```shell
 curl "http://localhost:8080?key=mykey"
 ```
 
+Some Redis Commands:
+
+```
+SET mykey "myvalue";
+
+INFO keyspace;
+
+SCAN 0 MATCH * COUNT 1000;
+```
 
 ### Cleanup
 

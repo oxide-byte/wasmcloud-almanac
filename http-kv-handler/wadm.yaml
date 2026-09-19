@@ -3,21 +3,32 @@ kind: Application
 metadata:
   name: http-kv-handler-app
   annotations:
-    version: v0.1.0
+    version: v0.1.3
     description: "HTTP + Key-Value Handler Component"
 spec:
   components:
     - name: http-kv-handler
       type: component
       properties:
-        # Push your WASM to a local registry with:
-        # wash oci push --insecure localhost:5001/http-kv-handler:0.1.0 ./target/wasm32-wasip2/release/http_kv_handler.wasm
-        # Then use: registry:5000/http-kv-handler:0.1.0 (in-lattice address)
         image: registry:5000/http-kv-handler:0.1.0
       traits:
         - type: spreadscaler
           properties:
             instances: 1
+        # Component imports wasi:keyvalue/store from the Redis provider
+        - type: link
+          properties:
+            target: keyvalue
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            target_config:
+              - name: redis-connection
+                properties:
+                  url: redis://redis:6379
+
+    # HTTP server capability provider
+    # Listens on port 8080 for incoming HTTP requests
     - name: httpserver
       type: capability
       properties:
@@ -34,19 +45,9 @@ spec:
                 - name: default-http
                   properties:
                     address: 0.0.0.0:8080
+
+    # Redis key-value provider (Compose service `redis` on wasmcloud-lattice)
     - name: keyvalue
       type: capability
       properties:
-        image: ghcr.io/wasmcloud/keyvalue-redis:0.25.0
-      traits:
-        - type: link
-          properties:
-            target: http-kv-handler
-            namespace: wasi
-            package: keyvalue
-            interfaces: [store]
-            source:
-              config:
-                - name: redis-connection
-                  properties:
-                    url: redis://redis:6379
+        image: ghcr.io/wasmcloud/keyvalue-redis:0.23.0
