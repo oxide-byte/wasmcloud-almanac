@@ -231,6 +231,32 @@ Retrieve a value
 curl "http://localhost:8080?key=mykey"
 ```
 
+### Troubleshooting
+
+| Symptom | Cause |
+| ------- | ----- |
+| `curl: (52) Empty reply from server` | Providers are still starting (`reconciling`). Wait for status `deployed`. |
+| `500` with `incomplete results` | The component's calls have no serving provider. Check the host logs: `docker logs wasmcloud-almanac-wasmcloud-1`. |
+| `not connected` on `wrpc:keyvalue/store@0.2.0-draft` | The keyvalue provider doesn't serve `wasi:keyvalue/store`. Use a newer `keyvalue-redis` image (see above). |
+
+List the wRPC subjects a provider serves to verify it exports `store@0.2.0-draft`:
+
+```sh
+curl -s 'localhost:8222/subsz?subs=1&limit=1000' | grep -o 'default.http_kv_handler_app-keyvalue[^"]*'
+```
+
+> **Provider version:** the manifest uses `ghcr.io/wasmcloud/keyvalue-redis:canary`. The `0.23.0` release only serves the legacy `wrpc:keyvalue/eventual` and `atomic` interfaces, not `wasi:keyvalue/store@0.2.0-draft` that this component imports. With `0.23.0` every request fails with a `500` (`failed to invoke wrpc:keyvalue/store@0.2.0-draft.get ... not connected`). `canary` is a floating tag; pin a commit-SHA tag from the [registry](https://github.com/wasmCloud/wasmCloud/pkgs/container/keyvalue-redis) once you have a known-good one.
+
+## One-step deploy
+
+The [`.justfile`](.justfile) runs the whole deployment flow below (undeploy, build, push, upload manifest, deploy, wait, smoke test):
+
+```shell
+just deploy
+```
+
+It polls wadm until the application status is `deployed` before sending the test requests, because the capability providers take several seconds to start. Requests sent earlier fail with `curl: (52) Empty reply from server`.
+
 Some Redis Commands:
 
 ```

@@ -50,4 +50,8 @@ spec:
     - name: keyvalue
       type: capability
       properties:
-        image: ghcr.io/wasmcloud/keyvalue-redis:0.23.0
+        image: ghcr.io/wasmcloud/keyvalue-redis:canary
+        config:
+          - name: redis-default
+            properties:
+              url: redis://redis:6379
