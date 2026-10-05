@@ -1,0 +1,13 @@
+build:
+  command: cargo build --target wasm32-wasip2 --release
+  component_path: target/wasm32-wasip2/release/postgres_handler.wasm
+
+dev:
+  # Postgres from infrastructure/docker-compose.yaml
+  postgres_url: postgres://postgres:postgres@127.0.0.1:5432/wasmdb
+  host_interfaces:
+    - namespace: wasmcloud
+      package: postgres
+      interfaces: [query]
+      config:
+        database: wasmdb

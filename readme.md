@@ -16,6 +16,20 @@ The main documentation will be under GitHub Pages: https://...
 
 Main goal is having all running on a local Docker-Compose Cluster, that it could be replicated as close as possible to the production environment.
 
+## Projects
+
+| Directory | Description |
+| --------- | ----------- |
+| [infrastructure](infrastructure) | Docker Compose cluster (NATS, wasmCloud host, wadm, registry, observability, Postgres seeded with a `users` table) |
+| [hello-world-prebuild](hello-world-prebuild) | Deploys a prebuilt hello-world component via wadm |
+| [hello-world-template](hello-world-template) | Minimal HTTP hello-world component in Rust |
+| [http-kv-handler](http-kv-handler) | HTTP component that stores and retrieves key-value pairs via `wasi:keyvalue` (Redis) |
+| [postgres-handler](postgres-handler) | HTTP component that returns the `users` table from Postgres (read-only `GET`) via `wasmcloud:postgres/query` |
+| [wasm-dashboard](wasm-dashboard) | Dioxus Fullstack app to manage wasmCloud applications |
+| [mdbook](mdbook) | Source of the documentation |
+
+The `infrastructure` Postgres service (database `wasmdb`, user/password `postgres`, port `5432`) is built from `infrastructure/postgres` and seeded by `init.sql`. It is used by `postgres-handler`.
+
 ## Bonus
 
 The project contains an Dioxus Fullstack application. This application can be used to manage your wasmCloud applications in the cluster.

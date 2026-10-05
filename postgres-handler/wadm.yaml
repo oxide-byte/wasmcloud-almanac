@@ -1,0 +1,57 @@
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: postgres-handler-app
+  annotations:
+    version: v0.1.0
+    description: "HTTP + Postgres Handler Component (GET users)"
+spec:
+  components:
+    - name: postgres-handler
+      type: component
+      properties:
+        image: registry:5000/postgres-handler:0.1.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 1
+        # Component imports wasmcloud:postgres/query from the sqldb-postgres provider
+        - type: link
+          properties:
+            target: sqldb
+            namespace: wasmcloud
+            package: postgres
+            interfaces: [query]
+            target_config:
+              - name: postgres-connection
+                properties:
+                  POSTGRES_HOST: postgres
+                  POSTGRES_PORT: "5432"
+                  POSTGRES_USERNAME: postgres
+                  POSTGRES_PASSWORD: postgres
+                  POSTGRES_DATABASE: wasmdb
+                  POSTGRES_TLS_REQUIRED: "false"
+
+    # HTTP server capability provider
+    - name: httpserver
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/http-server:0.22.0
+      traits:
+        - type: link
+          properties:
+            target: postgres-handler
+            namespace: wrpc
+            package: http
+            interfaces: [incoming-handler]
+            source:
+              config:
+                - name: default-http
+                  properties:
+                    address: 0.0.0.0:8080
+
+    # Postgres capability provider (Compose service `postgres` on wasmcloud-lattice)
+    - name: sqldb
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/sqldb-postgres:canary

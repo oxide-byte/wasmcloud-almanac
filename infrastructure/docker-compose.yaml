@@ -114,6 +114,22 @@ services:
       WADM_NATS_SERVER: nats:4222
     networks: [wasmcloud-lattice]
 
+  postgres:
+    build: postgres
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    networks: [wasmcloud-lattice]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: wasmdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d wasmdb"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
 networks:
   wasmcloud-lattice:
     driver: bridge

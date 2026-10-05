@@ -1,0 +1,5 @@
+package wasmcloud:postgres-handler;
+
+world postgres-handler {
+  import wasmcloud:postgres/query@0.1.1-draft;
+}
