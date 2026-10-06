@@ -1,8 +1,8 @@
 # HTTP + Postgres Handler in Rust
 
-A WebAssembly component built with [Rust][rust] that serves a read-only list of users over HTTP, queried from [Postgres][postgres] through the `wasmcloud:postgres/query` interface.
+A WebAssembly component built with [Rust][rust] that serves and creates users over HTTP, queried from [Postgres][postgres] through the `wasmcloud:postgres/query` interface.
 
-The component only runs `SELECT id, name, email FROM users ORDER BY id`. There are no writes. Connection details are not in the component: the host or capability provider owns them.
+The component runs `SELECT id, name, email FROM users ORDER BY id` and `INSERT INTO users (name, email) ... RETURNING id, name, email`. Connection details are not in the component: the host or capability provider owns them.
 
 [rust]: https://www.rust-lang.org/
 [postgres]: https://www.postgresql.org/
@@ -30,8 +30,9 @@ docker compose up -d --build
 | Endpoint | Method | Description |
 | -------- | ------ | ----------- |
 | `/` | GET | Returns all users as a JSON array |
+| `/` | POST | Creates a user from `{"name": "...", "email": "..."}`; returns the new row with `201` |
 
-Other methods return `405`. A failed query returns `500`.
+Other methods return `405`. An invalid body returns `400`, a duplicate email `409`, and a failed query `500`.
 
 Example response:
 
@@ -57,6 +58,18 @@ The output is `target/wasm32-wasip2/release/postgres_handler.wasm`.
 
 ```shell
 wash dev
+```
+
+`wash dev` serves HTTP on port 8000:
+
+```shell
+# list users
+curl http://localhost:8000
+
+# create a user
+curl -X POST http://localhost:8000 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Dana","email":"dana@example.com"}'
 ```
 
 ## Deployment (wadm.yaml)
@@ -122,9 +135,19 @@ docker run --rm --network wasmcloud-almanac_wasmcloud-lattice natsio/nats-box:la
 
 ### Test
 
+The Compose wasmCloud host publishes the HTTP server on port 8080:
+
 ```shell
+# list users
 curl http://localhost:8080
+
+# create a user
+curl -X POST http://localhost:8080 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Dana","email":"dana@example.com"}'
 ```
+
+Posting the same email again returns `409`.
 
 ### Troubleshooting
 
